@@ -536,11 +536,18 @@ def validation_findings(score: pd.DataFrame, liq: pd.DataFrame, alerts: pd.DataF
         a = alerts.set_index("level")
         red, none = a.loc["Đỏ"], a.loc["Không cảnh báo"]
         ratio = red["value_worse"] / none["value_worse"] if none["value_worse"] else float("nan")
-        out.append(f"<b>Cảnh báo đỏ báo trước thanh khoản giảm ở mức vừa phải:</b> {vn_pct(red['value_worse'], 0)} mã "
-                   f"đỏ có giá trị giao dịch 20 phiên sau thấp hơn mức tại thời điểm cảnh báo, so với "
-                   f"{vn_pct(none['value_worse'], 0)} ở nhóm không cảnh báo (gấp {vn(ratio, 2)} lần). Chỉ tiêu "
-                   f"“ít nhất một chỉ số xấu đi” quá lỏng ({vn_pct(none['either'], 0)} mã không cảnh báo cũng đạt) nên "
-                   "không dùng để đánh giá. Cảnh báo là tín hiệu để xem kỹ, không phải dự báo chắc chắn.")
+        if _valid(ratio) and ratio >= 1.1:
+            out.append(f"<b>Cảnh báo đỏ báo trước thanh khoản giảm tiếp:</b> {vn_pct(red['value_worse'], 0)} mã đỏ "
+                       f"có giá trị giao dịch 20 phiên sau thấp hơn mức tại thời điểm cảnh báo, so với "
+                       f"{vn_pct(none['value_worse'], 0)} ở nhóm không cảnh báo (gấp {vn(ratio, 2)} lần).")
+        else:
+            out.append(f"<b>Cảnh báo mô tả sự suy giảm đã xảy ra, không dự báo suy giảm tiếp theo.</b> Sau cảnh báo "
+                       f"đỏ, {vn_pct(red['value_worse'], 0)} mã có giá trị giao dịch 20 phiên sau thấp hơn mức tại thời "
+                       f"điểm cảnh báo — không cao hơn nhóm không cảnh báo ({vn_pct(none['value_worse'], 0)}); trung vị "
+                       f"giá trị giao dịch 20 phiên sau bằng {vn_pct(red['median_value_ratio'], 0)} mức lúc cảnh báo "
+                       "(thanh khoản thường hồi lại một phần). Vì vậy cảnh báo nên được hiểu là “thanh khoản của mã "
+                       "vừa xấu đi bất thường so với chính nó” để người dùng xem kỹ trước khi đặt lệnh, không phải "
+                       "tín hiệu dự báo.")
     return out
 
 
