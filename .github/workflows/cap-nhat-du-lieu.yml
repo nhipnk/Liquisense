@@ -1,0 +1,90 @@
+# Tự cập nhật dữ liệu SSI sau phiên, chạy trên máy chủ của GitHub (không cần bật máy cá nhân).
+# Dữ liệu mới được commit vào repo -> Streamlit Community Cloud tự nhận và hiển thị.
+name: Cập nhật dữ liệu SSI
+
+on:
+  schedule:
+    # Cron của GitHub tính theo UTC: 09:05 UTC = 16:05 giờ Việt Nam, thứ Hai–thứ Sáu.
+    - cron: "5 9 * * 1-5"
+  workflow_dispatch:            # nút "Run workflow" để chạy tay / tải bù
+    inputs:
+      from_date:
+        description: "Tải từ ngày (YYYY-MM-DD), để trống = cập nhật thường"
+        required: false
+      to_date:
+        description: "Đến ngày (YYYY-MM-DD), để trống = hôm nay"
+        required: false
+
+permissions:
+  contents: write               # chỉ cần quyền ghi nội dung repo để commit dữ liệu
+
+concurrency:
+  group: cap-nhat-du-lieu       # không cho hai lần cập nhật chạy chồng nhau
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      TZ: Asia/Ho_Chi_Minh
+      LIQUISENSE_RATE_LIMIT: "4"   # thấp hơn giới hạn 5 yêu cầu/giây cho an toàn
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Cài thư viện
+        run: pip install -r requirements.txt
+
+      - name: Tải dữ liệu từ SSI FastConnect
+        env:
+          SSI_API_KEY: ${{ secrets.SSI_API_KEY }}
+          SSI_API_SECRET: ${{ secrets.SSI_API_SECRET }}
+          SSI_CLIENT_ID: ${{ secrets.SSI_CLIENT_ID }}
+          FROM_DATE: ${{ github.event.inputs.from_date }}
+          TO_DATE: ${{ github.event.inputs.to_date }}
+        run: |
+          ARGS="--khong-tinh-san"
+          if [ -n "$FROM_DATE" ]; then ARGS="$ARGS --from-date $FROM_DATE"; fi
+          if [ -n "$TO_DATE" ]; then ARGS="$ARGS --to-date $TO_DATE"; fi
+          python scripts/update.py $ARGS
+          # Tải bù riêng các mã bị lỗi (nếu có), cùng khoảng ngày
+          if [ -s data/ma_loi.txt ]; then
+            python scripts/update.py --chi-ma-loi $ARGS || echo "Vẫn còn mã lỗi, sẽ thử lại lần sau."
+          fi
+
+      # Tính sẵn bảng chỉ số và đưa lên GitHub Release "cache" TRƯỚC khi commit: khi Streamlit Cloud nhận commit
+      # mới và khởi động lại, bảng tính sẵn đã có sẵn để tải (vài giây) thay vì tự tính lại (1–2 phút, ~1,6 GB RAM).
+      # Không commit file này vào git vì file lớn đổi mỗi ngày sẽ làm repo phình rất nhanh.
+      - name: Tính sẵn bảng chỉ số cho app
+        run: python scripts/dong_goi_cache.py
+
+      - name: Tải bảng tính sẵn lên GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view cache >/dev/null 2>&1 || \
+            gh release create cache --prerelease --title "Bảng chỉ số tính sẵn cho app" \
+              --notes "Workflow tự cập nhật mỗi ngày. Không phải bản phát hành phần mềm."
+          gh release upload cache dist/history.parquet dist/alerts.parquet dist/cache.json --clobber
+
+      - name: Commit dữ liệu mới
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/daily_bars_*.parquet
+          for f in data/job_runs.csv data/chat_luong_du_lieu.csv data/ma_loi.txt data/dieu_chinh_gia.csv; do
+            if [ -e "$f" ]; then git add "$f"; fi
+          done
+          if git diff --cached --quiet; then
+            echo "Không có dữ liệu mới (ngày nghỉ hoặc SSI chưa có phiên mới)."
+          else
+            git commit -m "Dữ liệu SSI đến $(date +%d/%m/%Y)"
+            git pull --rebase
+            git push
+          fi

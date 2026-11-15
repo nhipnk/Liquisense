@@ -1,0 +1,5 @@
+thoi_diem,lan_chay,ban_ghi_tai_ve,missing_key,bad_type,missing_price,non_positive_price,negative_volume,high_below_low,open_close_outside,outside_band,duplicate,ghi_de_ban_cu,ban_ghi_hop_le
+2026-11-14T09:00:29+07:00,tai_bu,241159,0,0,0,1,0,0,19,166505,0,12433,74634
+2026-11-14T09:41:34+07:00,hang_ngay,7522,0,0,0,0,0,0,0,39,0,6041,7483
+2026-11-14T22:44:10+07:00,tai_bu,1190871,0,0,0,0,0,0,8,550308,0,641936,1190863
+2026-11-15T17:59:01+07:00,tai_bu,1395043,0,0,0,1,0,0,27,692259,0,1253064,1395015

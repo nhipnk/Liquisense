@@ -1,0 +1,33 @@
+# ===== Bí mật — tuyệt đối không đưa lên GitHub =====
+.env
+.env.*
+!.env.example
+token_cache.json
+*.token
+.streamlit/secrets.toml
+
+# ===== Môi trường, tệp sinh ra =====
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.log
+
+# ===== Dữ liệu =====
+# Chặn mọi thứ trong data/ và mọi file parquet...
+data/*
+*.parquet
+# ...rồi chỉ mở lại những gì app trên cloud cần (workflow tự commit hằng ngày)
+!data/daily_bars_*.parquet
+!data/job_runs.csv
+!data/chat_luong_du_lieu.csv
+!data/ma_loi.txt
+!data/kiem_dinh_*.csv
+!data/dieu_chinh_gia.csv
+# Vẫn chặn: data/cache/ (app tự tính lại), data/danh_muc_mo_phong.json (danh mục cá nhân)
+# ===== Bản sao lưu cá nhân — không đưa lên repo =====
+backup/
+
+# Bảng tính sẵn đóng gói cho GitHub Release (không commit vào git)
+dist/
