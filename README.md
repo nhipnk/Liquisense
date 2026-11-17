@@ -50,7 +50,7 @@ Thời gian phân tích có hai chế độ: chọn **một ngày** (chỉ số 
 Repo đã có sẵn toàn bộ dữ liệu SSI đã tải (`data/daily_bars_*.parquet`, từ 04/01/2021), nên **không cần khóa API** vẫn chạy được ứng dụng, kiểm thử và kiểm định với đúng dữ liệu của đồ án.
 
 ### 2.1. Yêu cầu
-- Python **3.10 trở lên** (đã kiểm tra trên 3.12 và 3.13).
+- Python **3.10 trở lên**.
 - Git.
 - Khoảng 2 GB RAM trống cho lần chạy đầu.
 
@@ -202,7 +202,7 @@ Kiểm định chỉ dùng dữ liệu **đến phiên t** để dự báo, rồ
 | Cảnh báo đỏ: giá trị giao dịch 20 phiên sau thấp hơn mức lúc cảnh báo | 52%, so với 55% ở nhóm không cảnh báo | Cảnh báo **mô tả** suy giảm đã xảy ra, **không dự báo** suy giảm tiếp theo |
 
 **Giới hạn cần biết:**
-- **Spread Corwin–Schultz trên dữ liệu ngày ở Việt Nam rất nhiễu**, do biên độ trần/sàn và bước giá lớn so với giá cổ phiếu. Nên đọc spread như chỉ báo tương đối, không phải con số chính xác. Không có dữ liệu sổ lệnh để đối chiếu, vì Stream API của SSI cần OTP.
+- **Spread Corwin–Schultz trên dữ liệu ngày ở Việt Nam rất nhiễu**, do biên độ trần/sàn và bước giá lớn so với giá cổ phiếu. Nên đọc spread như chỉ báo tương đối, không phải con số chính xác.
 - **Số phiên tính theo ADV trung bình**, trong khi khối lượng phân phối lệch phải, nên thực tế thường lâu hơn khoảng 1 phiên. App và báo cáo PDF đều ghi chú điểm này.
 - Cảnh báo là tín hiệu để xem kỹ trước khi đặt lệnh, không phải dự báo.
 - Mô hình tác động giá căn bậc hai và hệ số Y lấy từ tài liệu quốc tế, chưa hiệu chỉnh riêng cho thị trường Việt Nam.
