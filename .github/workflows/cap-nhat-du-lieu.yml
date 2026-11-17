@@ -4,8 +4,15 @@ name: Cập nhật dữ liệu SSI
 
 on:
   schedule:
-    # Cron của GitHub tính theo UTC: 09:05 UTC = 16:05 giờ Việt Nam, thứ Hai–thứ Sáu.
-    - cron: "5 9 * * 1-5"
+    # Cron của GitHub tính theo UTC (giờ VN = UTC + 7), thứ Hai–thứ Sáu. GitHub KHÔNG đảm bảo chạy đúng giờ:
+    # lúc máy chủ đông lần chạy có thể trễ vài giờ hoặc bị bỏ, nên đặt nhiều mốc ở phút lẻ.
+    #  - 15:15: lấy dữ liệu sớm ngay sau khi các sàn đóng cửa (HOSE 14:45, HNX/UPCoM 15:00).
+    #  - 16:37: tải lại một lần để chốt số liệu cuối ngày (phòng khi lúc 15:15 SSI chưa tổng hợp xong).
+    #  - 18:37, 20:37: dự phòng khi các mốc trước bị trễ/bỏ; nếu đã chốt rồi thì dừng ngay sau vài giây.
+    - cron: "15 8 * * 1-5"      # 15:15
+    - cron: "37 9 * * 1-5"      # 16:37
+    - cron: "37 11 * * 1-5"     # 18:37
+    - cron: "37 13 * * 1-5"     # 20:37
   workflow_dispatch:            # nút "Run workflow" để chạy tay / tải bù
     inputs:
       from_date:
@@ -32,20 +39,45 @@ jobs:
       PYTHONUTF8: "1"
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 30          # đủ lịch sử gần đây để biết dữ liệu hôm nay được commit lúc mấy giờ
+
+      # Lần chạy theo lịch: bỏ qua nếu dữ liệu hôm nay đã được chốt (commit từ 16:00 trở đi).
+      # Dữ liệu lấy lúc 15:15 chưa tính là chốt, nên mốc 16:37 sẽ tải lại một lần.
+      - name: Kiểm tra đã có dữ liệu hôm nay chưa
+        id: check
+        run: |
+          TODAY=$(date +%F)
+          FILE="data/daily_bars_${TODAY}.parquet"
+          SKIP=false
+          if [ "${{ github.event_name }}" = "schedule" ] && [ -e "$FILE" ]; then
+            # Giờ của lần cập nhật gần nhất (nhật ký job được commit mỗi lần chạy, kể cả khi số liệu không đổi)
+            LAST=$(git log -1 --format=%cd --date=format-local:%F/%H%M -- data/job_runs.csv)
+            AT=${LAST#*/}
+            if [ "${LAST%/*}" = "$TODAY" ] && [ "$AT" -ge 1600 ]; then
+              echo "Dữ liệu phiên ${TODAY} đã chốt lúc ${AT:0:2}:${AT:2:2} — bỏ qua lần chạy này."
+              SKIP=true
+            else
+              echo "Đã có dữ liệu sớm của phiên ${TODAY} (lúc ${AT:-?}) — tải lại để chốt số liệu cuối ngày."
+            fi
+          fi
+          echo "skip=${SKIP}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-python@v5
+        if: steps.check.outputs.skip != 'true'
         with:
           python-version: "3.12"
           cache: pip
 
       - name: Cài thư viện
+        if: steps.check.outputs.skip != 'true'
         run: pip install -r requirements.txt
 
       - name: Tải dữ liệu từ SSI FastConnect
+        if: steps.check.outputs.skip != 'true'
         env:
           SSI_API_KEY: ${{ secrets.SSI_API_KEY }}
           SSI_API_SECRET: ${{ secrets.SSI_API_SECRET }}
-          SSI_CLIENT_ID: ${{ secrets.SSI_CLIENT_ID }}
           FROM_DATE: ${{ github.event.inputs.from_date }}
           TO_DATE: ${{ github.event.inputs.to_date }}
         run: |
@@ -62,9 +94,11 @@ jobs:
       # mới và khởi động lại, bảng tính sẵn đã có sẵn để tải (vài giây) thay vì tự tính lại (1–2 phút, ~1,6 GB RAM).
       # Không commit file này vào git vì file lớn đổi mỗi ngày sẽ làm repo phình rất nhanh.
       - name: Tính sẵn bảng chỉ số cho app
+        if: steps.check.outputs.skip != 'true'
         run: python scripts/dong_goi_cache.py
 
       - name: Tải bảng tính sẵn lên GitHub Release
+        if: steps.check.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -74,6 +108,7 @@ jobs:
           gh release upload cache dist/history.parquet dist/alerts.parquet dist/cache.json --clobber
 
       - name: Commit dữ liệu mới
+        if: steps.check.outputs.skip != 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
