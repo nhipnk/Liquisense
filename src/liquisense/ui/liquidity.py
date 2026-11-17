@@ -129,7 +129,8 @@ def ranking_card(metrics: pd.DataFrame, levels: dict[str, str], period: Period, 
 
 
 WINDOW_OPTIONS = ["10 phiên", "20 phiên", "60 phiên"]
-WINDOW_NOTE = "Score và cảnh báo luôn dùng 20 phiên — mức đã được kiểm định."
+WINDOW_NOTE = ("Cửa sổ này chỉ để làm mượt đường trung bình trên biểu đồ, không làm thay đổi Score, hạng hay "
+               "cảnh báo.")
 
 
 def window_selector(key: str, label: str = "Cửa sổ trung bình") -> int:
@@ -456,9 +457,11 @@ def liquidity_page(period: Period, t: dict[str, object]) -> None:
 
     with st.expander("Phương pháp & giới hạn"):
         st.markdown(
-            "- **Một ngày:** chỉ số tính trên cửa sổ 20 phiên kết thúc ở ngày đó. **Khoảng:** spread, Amihud "
-            "và ADV lấy trung bình, biến động lấy độ lệch chuẩn, tất cả trong đúng khoảng đã chọn "
-            "(cần ít nhất 10 phiên hợp lệ).\n"
+            "- **Một ngày:** chỉ số, Score và hạng tính trên cửa sổ 20 phiên kết thúc ở ngày đó. **Khoảng:** spread, "
+            "Amihud và ADV lấy trung bình, biến động lấy độ lệch chuẩn, tỷ lệ ngày không giao dịch, Score và hạng — "
+            "tất cả tính trên **toàn bộ khoảng đã chọn** (cần ít nhất 10 phiên hợp lệ). Riêng **cảnh báo** luôn xét "
+            "20 phiên gần nhất tính đến ngày cuối của khoảng (so với 60 phiên trước đó), vì cảnh báo nói về tình "
+            "trạng hiện tại của mã.\n"
             "- **Spread Corwin–Schultz:** ước lượng từng ngày từ biên độ cao/thấp hai ngày liên tiếp; ước lượng âm "
             "đặt về 0, rồi lấy **trung bình** theo khuyến nghị của bài báo gốc (Corwin & Schultz, 2012). "
             "Lấy trung vị sẽ cho ra 0 với rất nhiều mã vì hơn nửa số ngày bị cắt về 0.\n"

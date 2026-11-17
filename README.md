@@ -41,7 +41,7 @@ LiquiSense đo thanh khoản của khoảng 1.560 cổ phiếu trên HOSE, HNX v
 | **Chi phí giao dịch** | Nhập khối lượng mua/bán để ước tính chi phí theo ba kịch bản (thấp/cơ sở/cao) và số phiên khớp hết ở mức 10/20/30% ADV, có tính T+2. |
 | **Mô phỏng danh mục** | Nhập danh mục tự chọn; xem số phiên cần để thoát từng vị thế và cả danh mục, các mã khó thoát và mã đang bị cảnh báo. |
 
-Thời gian phân tích có hai chế độ: chọn **một ngày** (chỉ số tính trên 20 phiên kết thúc ở ngày đó) hoặc chọn **một khoảng** (ví dụ 1 tháng, 3 tháng, 1 năm). Giao diện hoàn toàn bằng tiếng Việt, có chế độ sáng và tối, mọi mốc thời gian theo giờ Việt Nam.
+Thời gian phân tích có hai chế độ: chọn **một ngày** (chỉ số tính trên 20 phiên kết thúc ở ngày đó) hoặc chọn **một khoảng** (ví dụ 1 tháng, 3 tháng, 1 năm; chỉ số, Score và chi phí tính trên toàn bộ khoảng). Giao diện hoàn toàn bằng tiếng Việt, có chế độ sáng và tối, mọi mốc thời gian theo giờ Việt Nam.
 
 ---
 
@@ -155,7 +155,12 @@ Muốn tự động cập nhật trên Windows mà không dùng GitHub Actions: 
 
 ## 5. Phương pháp
 
-Mọi chỉ số tính trên **giá đã điều chỉnh** theo sự kiện quyền do SSI cung cấp. Score và cảnh báo luôn dùng cửa sổ **20 phiên**.
+Mọi chỉ số tính trên **giá đã điều chỉnh** theo sự kiện quyền do SSI cung cấp.
+
+**Kỳ phân tích:**
+- Chọn **một ngày** thì mọi chỉ số, Score và hạng tính trên 20 phiên kết thúc ở ngày đó.
+- Chọn **một khoảng** thì spread, Amihud, ADV, biến động, tỷ lệ ngày không giao dịch, Score, hạng và chi phí giao dịch đều tính trên **toàn bộ khoảng** (cần ít nhất 10 phiên hợp lệ).
+- Riêng **cảnh báo** luôn xét 20 phiên gần nhất tính đến ngày cuối kỳ, vì cảnh báo nói về tình trạng hiện tại của mã.
 
 | Chỉ số | Cách tính | Ý nghĩa |
 |---|---|---|

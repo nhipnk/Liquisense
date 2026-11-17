@@ -560,13 +560,15 @@ def build_stock_report(row: pd.Series, metrics: pd.DataFrame, history: pd.DataFr
     for text in (
         "Dữ liệu: nến ngày từ SSI FastConnect (chỉ đọc); radar chỉ xét cổ phiếu mã 3 ký tự trên HOSE, HNX, UPCoM.",
         "Spread Corwin–Schultz: ước lượng từng ngày từ biên độ cao/thấp hai ngày liên tiếp, giá trị âm đặt về 0, "
-        "lấy trung bình 20 phiên theo khuyến nghị của bài báo gốc (Corwin & Schultz, 2012).",
+        "lấy trung bình trong kỳ phân tích theo khuyến nghị của bài báo gốc (Corwin & Schultz, 2012).",
+        "Kỳ phân tích: nếu chọn một ngày, mọi chỉ số, Score và hạng tính trên 20 phiên kết thúc ở ngày đó; nếu "
+        "chọn một khoảng, tính trên toàn bộ khoảng. Riêng cảnh báo luôn xét 20 phiên gần nhất tính đến ngày cuối kỳ.",
         "Amihud: |lợi suất| / giá trị giao dịch (tỷ đồng), bỏ ngày chạm trần/sàn và ngày có sự kiện quyền.",
         "Score = 30% spread + 30% Amihud + 30% ADV giá trị + 10% tỷ lệ ngày không giao dịch, theo thứ hạng phần "
-        "trăm trong các mã đủ dữ liệu. Score và cảnh báo luôn dùng cửa sổ 20 phiên. Ba chiều spread (độ chặt), "
+        "trăm trong các mã đủ dữ liệu. Ba chiều spread (độ chặt), "
         "Amihud (độ sâu) và giá trị giao dịch (độ rộng) theo Kyle (1985) và Sarr & Lybek (2002) được chia đều; tỷ lệ "
         "ngày không giao dịch (Lesmond và cộng sự, 1999) giữ 10% để tách nhóm mã ít giao dịch. Đổi sang trọng số "
-        "bằng nhau hoặc nặng chi phí/quy mô, tương quan hạng Spearman với Score vẫn trên 0,97.",
+        "bằng nhau hoặc nặng chi phí/quy mô, tương quan hạng Spearman với Score vẫn rất gần 1.",
         "Cảnh báo: robust z-score so với 60 phiên trước của chính mã; đỏ khi ít nhất hai chỉ số cùng xấu đi với |z| > 2.",
         "Ngành theo tháng: giá trị giao dịch của cả ngành chia số phiên, so với trung bình 12 tháng của chính ngành; "
         "phân ngành ICB lấy nguyên từ SSI.",

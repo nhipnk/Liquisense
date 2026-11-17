@@ -117,10 +117,21 @@ def cost_page(period: Period, t: dict[str, object]) -> None:
         symbol = st.selectbox("Mã cổ phiếu (gõ để tìm)", list(labels), format_func=labels.get, key="cost_symbol")
         row = available.loc[available["symbol"].eq(symbol)].iloc[0]
         side = segmented("Chiều lệnh", ["Mua", "Bán"], "cost_side", "Mua")
-        window = window_selector("cost_window", "Số phiên tính ADV và σ")
-        md(f'<p class="ls-note" style="margin:-6px 0 10px">ADV và biến động σ tính trên {window} phiên gần nhất '
-           f'đến {period.as_of:%d/%m/%Y} để xem chi phí nhạy với giả định thế nào. {WINDOW_NOTE}</p>')
-        adv, sigma = cost_inputs(symbol, period.as_of, window)
+        if period.is_range:
+            # Chế độ khoảng: ADV, σ và spread lấy đúng trên toàn bộ khoảng đã chọn (giống các trang khác).
+            window = int(row["sessions"]) if _valid(row.get("sessions")) else 20
+            window_label = f"{period.start:%d/%m/%Y} – {period.as_of:%d/%m/%Y}"
+            md(f'<p class="ls-note" style="margin:0 0 10px">ADV, biến động σ và spread tính trên <b>toàn bộ khoảng '
+               f'{window_label}</b> ({vn(window)} phiên). Muốn xem riêng 10/20/60 phiên gần nhất, chuyển thanh thời '
+               'gian sang chế độ <b>Một ngày</b>.</p>')
+            adv, sigma = float(row["adv_volume"]), float(row["daily_volatility"])
+        else:
+            window = window_selector("cost_window", "Số phiên tính ADV và σ")
+            window_label = f"{window} phiên"
+            md(f'<p class="ls-note" style="margin:-6px 0 10px">ADV và biến động σ tính trên {window} phiên gần nhất '
+               f'đến {period.as_of:%d/%m/%Y} để xem chi phí nhạy với giả định thế nào. Spread lấy theo 20 phiên. '
+               f'{WINDOW_NOTE}</p>')
+            adv, sigma = cost_inputs(symbol, period.as_of, window)
         if not _valid(adv) or adv <= 0:
             adv = float(row["adv_volume"])
         if not _valid(sigma):
@@ -137,9 +148,9 @@ def cost_page(period: Period, t: dict[str, object]) -> None:
             '<dl class="ls-dl">'
             f'<dt>Giá đóng cửa</dt><dd>{vn(row["close"])} đ</dd>'
             f'<dt>Giá trị lệnh</dt><dd>{vn_thousand(quantity * float(row["close"])) if quantity else "—"}</dd>'
-            f'<dt>ADV khối lượng ({window} phiên)</dt><dd>{vn(adv)}</dd>'
+            f'<dt>ADV khối lượng ({window_label})</dt><dd>{vn(adv)}</dd>'
             f'<dt>Spread ước lượng (S)</dt><dd>{vn_pct(row["spread"])}</dd>'
-            f'<dt>Biến động ngày σ ({window} phiên)</dt><dd>{vn_pct(sigma)}</dd>'
+            f'<dt>Biến động ngày σ ({window_label})</dt><dd>{vn_pct(sigma)}</dd>'
             '</dl>'
         )
 
