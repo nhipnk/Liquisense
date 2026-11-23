@@ -50,7 +50,7 @@ Thời gian phân tích có hai chế độ: chọn **một ngày** (chỉ số 
 Repo đã có sẵn toàn bộ dữ liệu SSI đã tải (`data/daily_bars_*.parquet`, từ 04/01/2021), nên **không cần khóa API** vẫn chạy được ứng dụng, kiểm thử và kiểm định với đúng dữ liệu của đồ án.
 
 ### 2.1. Yêu cầu
-- Python **3.10 trở lên**.
+- Python **3.10 trở lên** (đã kiểm tra trên 3.12 và 3.13).
 - Git.
 - Khoảng 2 GB RAM trống cho lần chạy đầu.
 
@@ -92,7 +92,7 @@ python scripts/precompute.py
 ```bash
 python -m pytest -q
 ```
-Kết quả mong đợi: tất cả test đều qua (`72 passed`). Kiểm thử không gọi SSI và không cần mạng.
+Kết quả mong đợi: tất cả 76 bài kiểm thử đều qua (`76 passed`). Bài `test_real_store_has_no_jump_at_adjustment_dates` kiểm tra trên kho dữ liệu thật trong `data/`; nếu máy chưa có kho dữ liệu, bài này tự bỏ qua và kết quả là `75 passed, 1 skipped`. Kiểm thử không gọi SSI và không cần mạng.
 
 ### 2.5. Tái lập kết quả kiểm định ngoài mẫu (mục 6)
 ```bash
@@ -172,7 +172,7 @@ Mọi chỉ số tính trên **giá đã điều chỉnh** theo sự kiện quy�
 
 **Vì sao chọn trọng số 30/30/30/10:** thanh khoản có ba chiều chính là độ chặt, độ sâu và độ rộng (Kyle, 1985; Sarr & Lybek, 2002). Không có căn cứ để ưu tiên chiều nào nên ba chiều được chia đều. Tỷ lệ ngày không giao dịch (Lesmond, Ogden & Trzcinka, 1999) bằng 0 với đa số mã nên chỉ giữ 10% để tách nhóm mã ít giao dịch. Khi đổi sang 4 bộ trọng số khác, tương quan hạng Spearman với Score hiện tại vẫn rất gần 1 và nhóm 20% tốt nhất trùng phần lớn, nên kết luận không phụ thuộc vào trọng số cụ thể (bảng độ nhạy trong app, mục Phương pháp & giới hạn).
 
-**Chi phí giao dịch** = nửa spread + tác động giá Y·σ·√(Q/ADV) + phí môi giới 0,15% + thuế bán 0,1%. Ba kịch bản dùng Y = 0,5 / 1 / 1,5 (mô hình căn bậc hai).
+**Chi phí giao dịch** = nửa spread + tác động giá Y·σ·√(Q/ADV) + phí môi giới 0,15% + thuế bán 0,1%. Ba kịch bản dùng Y = 0,5 / 1 / 1,5 theo mô hình tác động giá căn bậc hai (Almgren và cộng sự, 2005; Tóth và cộng sự, 2011).
 
 **Số phiên khớp hết** = Q / (p × ADV) với tỷ lệ tham gia p = 10%, 20% hoặc 30% mỗi phiên, làm tròn lên. Thanh toán theo T+2.
 
@@ -202,10 +202,10 @@ Kiểm định chỉ dùng dữ liệu **đến phiên t** để dự báo, rồ
 | Cảnh báo đỏ: giá trị giao dịch 20 phiên sau thấp hơn mức lúc cảnh báo | 52%, so với 55% ở nhóm không cảnh báo | Cảnh báo **mô tả** suy giảm đã xảy ra, **không dự báo** suy giảm tiếp theo |
 
 **Giới hạn cần biết:**
-- **Spread Corwin–Schultz trên dữ liệu ngày ở Việt Nam rất nhiễu**, do biên độ trần/sàn và bước giá lớn so với giá cổ phiếu. Nên đọc spread như chỉ báo tương đối, không phải con số chính xác.
+- **Spread Corwin–Schultz trên dữ liệu ngày ở Việt Nam rất nhiễu**, do biên độ trần/sàn và bước giá lớn so với giá cổ phiếu. Nên đọc spread như chỉ báo tương đối, không phải con số chính xác. Không có dữ liệu sổ lệnh để đối chiếu, vì Stream API của SSI cần OTP.
 - **Số phiên tính theo ADV trung bình**, trong khi khối lượng phân phối lệch phải, nên thực tế thường lâu hơn khoảng 1 phiên. App và báo cáo PDF đều ghi chú điểm này.
 - Cảnh báo là tín hiệu để xem kỹ trước khi đặt lệnh, không phải dự báo.
-- Mô hình tác động giá căn bậc hai và hệ số Y lấy từ tài liệu quốc tế, chưa hiệu chỉnh riêng cho thị trường Việt Nam.
+- Mô hình tác động giá căn bậc hai và hệ số Y lấy từ nghiên cứu trên các thị trường phát triển (Almgren và cộng sự, 2005; Tóth và cộng sự, 2011), chưa hiệu chỉnh riêng cho thị trường Việt Nam.
 
 Tài liệu kiểm thử các tình huống lỗi (mất mạng, thiếu hoặc sai khóa, hết hạn token, giới hạn tần suất, dữ liệu rỗng, file hỏng): [`docs/kiem_thu_tinh_huong_loi.md`](docs/kiem_thu_tinh_huong_loi.md).
 
@@ -293,9 +293,11 @@ Tự triển khai bản riêng:
 
 ## 11. Tài liệu tham khảo
 
+- Almgren, R., Thum, C., Hauptmann, E., & Li, H. (2005). Direct estimation of equity market impact. *Risk*, 18(7), 58–62.
 - Amihud, Y. (2002). Illiquidity and stock returns: cross-section and time-series effects. *Journal of Financial Markets*, 5(1), 31–56.
 - Corwin, S. A., & Schultz, P. (2012). A simple way to estimate bid-ask spreads from daily high and low prices. *The Journal of Finance*, 67(2), 719–760.
 - Kyle, A. S. (1985). Continuous auctions and insider trading. *Econometrica*, 53(6), 1315–1335.
 - Lesmond, D. A., Ogden, J. P., & Trzcinka, C. A. (1999). A new estimate of transaction costs. *The Review of Financial Studies*, 12(5), 1113–1141.
 - Sarr, A., & Lybek, T. (2002). Measuring liquidity in financial markets. *IMF Working Paper* 02/232.
+- Tóth, B., Lempérière, Y., Deremble, C., de Lataillade, J., Kockelkoren, J., & Bouchaud, J.-P. (2011). Anomalous price impact and the critical nature of liquidity in financial markets. *Physical Review X*, 1(2), 021006.
 - SSI FastConnect Data API và SSI Python SDK — tài liệu chính thức của Công ty Cổ phần Chứng khoán SSI.
