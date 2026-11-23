@@ -18,6 +18,7 @@ from liquisense.snapshot import (
 )
 from liquisense.ui.common import (
     Period,
+    running_on_cloud,
     _valid,
     alert_levels,
     esc,
@@ -48,26 +49,41 @@ def _portfolio_path() -> Path:
 
 
 def load_portfolio() -> list[dict[str, object]]:
+    """Danh mục của người đang xem.
+
+    - Trên máy cá nhân: đọc/ghi file data/danh_muc_mo_phong.json để giữ lại giữa các lần mở app.
+    - Trên cloud (nhiều người dùng chung một máy chủ): CHỈ giữ trong phiên trình duyệt (st.session_state), không
+      đọc/ghi file — mỗi người xem có một danh mục riêng, người khác không thấy và không sửa được."""
     if "portfolio" not in st.session_state:
         positions: list[dict[str, object]] = []
-        try:
-            path = _portfolio_path()
-            if path.exists():
-                positions = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            positions = []
+        if not running_on_cloud():
+            try:
+                path = _portfolio_path()
+                if path.exists():
+                    positions = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                positions = []
         st.session_state["portfolio"] = positions
     return st.session_state["portfolio"]
 
 
 def save_portfolio(positions: list[dict[str, object]]) -> None:
     st.session_state["portfolio"] = positions
+    if running_on_cloud():
+        return
     try:
         path = _portfolio_path()
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(positions, ensure_ascii=False, indent=2), encoding="utf-8")
     except OSError:
         pass  # Không ghi được file thì vẫn giữ trong phiên làm việc.
+
+
+def storage_note() -> str:
+    if running_on_cloud():
+        return ("chỉ được giữ trong trình duyệt của bạn trong lần mở này — người khác không xem được, và sẽ mất "
+                "khi bạn đóng hoặc tải lại trang")
+    return "được lưu trong file data/danh_muc_mo_phong.json trên máy của bạn"
 
 
 def add_position(symbol: str, qty: int, cost: float) -> None:
@@ -94,7 +110,7 @@ def portfolio_page(period: Period, t: dict[str, object]) -> None:
     md(f'<div class="ls-band" style="background:{t["infoBg"]};color:{t["info"]};margin:0 0 12px">'
        '<strong>Danh mục do bạn tự nhập để mô phỏng.</strong>'
        '<span>LiquiSense không kết nối tài khoản chứng khoán, không đọc số dư và không gửi lệnh. '
-       'Mã, khối lượng và giá vốn chỉ là số liệu giả định của bạn, được lưu trên máy này.</span></div>')
+       f'Mã, khối lượng và giá vốn chỉ là số liệu giả định của bạn, {storage_note()}.</span></div>')
     metrics, alerts = get_snapshot(period)
     if metrics.empty:
         st.warning("Không có dữ liệu cho thời gian đã chọn.")
@@ -293,5 +309,7 @@ def portfolio_page(period: Period, t: dict[str, object]) -> None:
             "trước) nên bán được ngay từ phiên T.\n"
             "- **Lãi/lỗ tạm tính** = (giá đóng cửa − giá vốn) × khối lượng, chưa trừ phí và thuế.\n"
             "- Danh mục cho phép lô lẻ; khi bán thực tế, phần lô lẻ thường khớp chậm hơn và giá kém hơn.\n"
-            "- Danh mục lưu ở file `data/danh_muc_mo_phong.json` trên máy bạn; xóa file này là xóa danh mục."
+            + ("- Bản trực tuyến: danh mục chỉ nằm trong phiên trình duyệt của bạn, không lưu lên máy chủ, người "
+               "khác không xem được; tải lại trang là mất.\n" if running_on_cloud() else
+               "- Danh mục lưu ở file `data/danh_muc_mo_phong.json` trên máy bạn; xóa file này là xóa danh mục.\n")
         )

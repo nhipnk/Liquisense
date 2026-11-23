@@ -28,7 +28,7 @@ STOCK_PATTERN = r"[A-Z0-9]{3}"
 ALERT_WINDOW_SESSIONS = 130  # cảnh báo cần 60 phiên lịch sử + 20 phiên cửa sổ + tháng trước
 MIN_RANGE_SESSIONS = 10      # khoảng ngắn hơn 10 phiên thì không đủ để chấm điểm
 METRIC_FIELDS = ("spread", "amihud", "adv_volume", "adv_value", "zero_days")
-HISTORY_VERSION = "h6"   # h4: lợi suất giá điều chỉnh; h5: chèn phiên không có nến; h6: đếm phiên trần/sàn       # đổi khi cấu trúc bảng lịch sử thay đổi
+HISTORY_VERSION = "h7"   # h5: chèn phiên không có nến; h6: đếm phiên trần/sàn; h7: hệ số điều chỉnh không nhân trùng
 
 
 def board_label(value: object) -> str:

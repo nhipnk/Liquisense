@@ -39,7 +39,7 @@ LiquiSense đo thanh khoản của khoảng 1.560 cổ phiếu trên HOSE, HNX v
 | **Tổng quan** | Bức tranh thanh khoản toàn thị trường: chỉ số chính, heatmap ngành × sàn, dòng tiền và spread theo ngành từng tháng, phân bố Score, danh sách cảnh báo mới nhất kèm lý do cụ thể, báo cáo chất lượng dữ liệu. |
 | **Thanh khoản** | Bảng xếp hạng Score (lọc theo sàn, ngành, tầng, màu cảnh báo; xuất CSV) và hồ sơ từng mã: chỉ số, nhận xét tự động, lý do cảnh báo, biểu đồ lịch sử spread/Amihud/giá trị giao dịch, **xuất báo cáo PDF** có trang bìa. |
 | **Chi phí giao dịch** | Nhập khối lượng mua/bán để ước tính chi phí theo ba kịch bản (thấp/cơ sở/cao) và số phiên khớp hết ở mức 10/20/30% ADV, có tính T+2. |
-| **Mô phỏng danh mục** | Nhập danh mục tự chọn; xem số phiên cần để thoát từng vị thế và cả danh mục, các mã khó thoát và mã đang bị cảnh báo. |
+| **Mô phỏng danh mục** | Nhập danh mục tự chọn; xem số phiên cần để thoát từng vị thế và cả danh mục, các mã khó thoát và mã đang bị cảnh báo. Trên bản trực tuyến, danh mục chỉ nằm trong phiên trình duyệt của từng người xem (người khác không thấy); khi chạy trên máy cá nhân, danh mục được lưu vào `data/danh_muc_mo_phong.json`. |
 
 Thời gian phân tích có hai chế độ: chọn **một ngày** (chỉ số tính trên 20 phiên kết thúc ở ngày đó) hoặc chọn **một khoảng** (ví dụ 1 tháng, 3 tháng, 1 năm; chỉ số, Score và chi phí tính trên toàn bộ khoảng). Giao diện hoàn toàn bằng tiếng Việt, có chế độ sáng và tối, mọi mốc thời gian theo giờ Việt Nam.
 
@@ -185,7 +185,7 @@ Mọi chỉ số tính trên **giá đã điều chỉnh** theo sự kiện quy�
 - Loại bản ghi trùng; không nội suy giá.
 - Chèn các phiên mã không có giao dịch, vì SSI không trả nến cho những phiên này.
 - Nhận diện phiên chạm trần/sàn bằng cách quy giá điều chỉnh về giá gốc.
-- Phát hiện khi SSI điều chỉnh lại lịch sử giá sau sự kiện quyền và đưa dữ liệu cũ về cùng thang giá (`data/dieu_chinh_gia.csv`).
+- Phát hiện khi SSI điều chỉnh lại lịch sử giá sau sự kiện quyền và đưa dữ liệu cũ về cùng thang giá (`data/dieu_chinh_gia.csv`). Nếu một mốc được ghi nhiều lần (SSI điều chỉnh thêm lần nữa, hoặc lần chạy lại phát hiện trùng), app chọn số lần nhân làm chỗ nối hai thang giá liền mạch nhất; có kiểm thử bảo đảm không còn lợi suất vượt biên độ trần/sàn ở chỗ nối.
 - Báo cáo chất lượng dữ liệu ghi ở `data/chat_luong_du_lieu.csv` và hiển thị trong app.
 
 ---
@@ -268,7 +268,7 @@ python -m pytest -q
 
 ## 9. Triển khai và cập nhật tự động
 
-- **GitHub Actions** (`.github/workflows/cap-nhat-du-lieu.yml`) chạy lúc 16:05 giờ Việt Nam, thứ Hai–thứ Sáu. Workflow tải dữ liệu SSI bằng khóa lưu trong GitHub Secrets, tính sẵn bảng chỉ số, tải lên GitHub Release `cache`, rồi commit dữ liệu mới.
+- **GitHub Actions** (`.github/workflows/cap-nhat-du-lieu.yml`) tự tải dữ liệu sau mỗi phiên giao dịch. Workflow dùng khóa lưu trong GitHub Secrets, tính sẵn bảng chỉ số, tải lên GitHub Release `cache`, rồi commit dữ liệu mới. Lịch hẹn đặt từ 15:15 tối đa 4 mốc mỗi ngày, nhưng GitHub thường dời lịch chạy với repo ít hoạt động. **Trên thực tế dữ liệu phiên thường được cập nhật trong đêm sau phiên.** Mỗi lần chạy xác định *phiên giao dịch* cần có (chạy trước 15:00 thì là phiên liền trước, bỏ qua cuối tuần); nếu phiên đó đã được tải và chốt thì dừng ngay, nên mỗi phiên chỉ có 1–2 commit dữ liệu.
 - **Streamlit Community Cloud** tự nhận commit mới và khởi động lại app. Khi khởi động, app tải bảng tính sẵn từ Release (biến `LIQUISENSE_CACHE_URL` trong Secrets của Streamlit) nên mở được ngay; nếu tải không được thì app tự tính lại.
 
 Tự triển khai bản riêng:

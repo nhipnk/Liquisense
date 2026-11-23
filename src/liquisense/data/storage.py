@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from loguru import logger
@@ -53,7 +54,7 @@ def read_price_adjustments(root: Path) -> pd.DataFrame:
     frame = pd.read_csv(path, dtype={"symbol": str}, encoding="utf-8-sig")
     frame["before"] = pd.to_datetime(frame["before"], errors="coerce").dt.date
     frame["factor"] = pd.to_numeric(frame["factor"], errors="coerce")
-    return frame.dropna(subset=["symbol", "before", "factor"])
+    return frame.dropna(subset=["symbol", "before", "factor"]).reset_index(drop=True)
 
 
 def append_price_adjustments(root: Path, rows: list[dict[str, object]]) -> None:
@@ -61,24 +62,54 @@ def append_price_adjustments(root: Path, rows: list[dict[str, object]]) -> None:
     pd.DataFrame(rows).to_csv(path, mode="a", header=not path.exists(), index=False, encoding="utf-8-sig")
 
 
+def _junction_gap(closes: pd.Series, days: pd.Series, before: date, factor: float) -> float:
+    """|log| bước nhảy giá ở chỗ nối hai thang nếu nhân giá các ngày trước ``before`` với ``factor``."""
+    prior = closes[days < before].dropna()
+    after = closes[days >= before].dropna()
+    if prior.empty or after.empty or prior.iloc[-1] <= 0 or after.iloc[0] <= 0:
+        return 0.0
+    return abs(float(np.log(after.iloc[0] / (prior.iloc[-1] * factor))))
+
+
+def effective_adjustments(bars: pd.DataFrame, adjustments: pd.DataFrame) -> list[tuple[str, date, float]]:
+    """Hệ số thực sự cần áp cho từng (mã, mốc ngày).
+
+    Một mốc có thể được ghi nhiều dòng vì hai lý do khác nhau:
+    - SSI điều chỉnh lại lịch sử thêm một lần nữa (thật) → phải nhân dồn các hệ số;
+    - lần chạy lại/tải bù phát hiện lại đúng sự kiện cũ (trùng) → chỉ được nhân một lần.
+    Không thể phân biệt bằng nhật ký, nên chọn số lần nhân (1…n) làm chỗ nối giữa hai thang giá liền mạch nhất,
+    tức bước nhảy giá ở ngày ``before`` nhỏ nhất."""
+    out: list[tuple[str, date, float]] = []
+    for (symbol, before), group in adjustments.groupby(["symbol", "before"], sort=False):
+        factors = group["factor"].astype(float).tolist()
+        if len(factors) == 1:
+            out.append((symbol, before, factors[0]))
+            continue
+        rows = bars[bars["symbol"].eq(symbol)].sort_values("date")
+        days = pd.to_datetime(rows["date"]).dt.date
+        closes = pd.to_numeric(rows["close"], errors="coerce")
+        candidates = [float(np.prod(factors[:k])) for k in range(1, len(factors) + 1)]
+        best = min(candidates, key=lambda f: _junction_gap(closes, days, before, f))
+        out.append((symbol, before, best))
+    return out
+
+
 def apply_price_adjustments(bars: pd.DataFrame, root: Path) -> pd.DataFrame:
     """Đưa giá các ngày cũ về cùng thang với giá SSI đã điều chỉnh lại (xem update.rescale_factor).
 
-    Mỗi dòng (mã, before, hệ số) nhân giá mở/cao/thấp/đóng cửa của các ngày TRƯỚC ``before``; nhiều sự kiện
-    thì nhân dồn. Giá tham chiếu/trần/sàn giữ nguyên (là giá gốc của ngày) — finance.price_scale tự tính lại
-    tỷ lệ giữa hai loại giá nên nhận diện trần/sàn vẫn đúng."""
+    Mỗi mốc (mã, before, hệ số) nhân giá mở/cao/thấp/đóng cửa của các ngày TRƯỚC ``before``; nhiều mốc thì nhân
+    dồn (mốc mới nhất áp trước, vì hệ số được đo trên giá đã quy đổi). Giá tham chiếu/trần/sàn giữ nguyên (là giá
+    gốc của ngày) — finance.price_scale tự tính lại tỷ lệ giữa hai loại giá nên nhận diện trần/sàn vẫn đúng."""
     adjustments = read_price_adjustments(root)
     if adjustments.empty or bars.empty:
         return bars
     bars = bars.copy()
     day = pd.to_datetime(bars["date"]).dt.date
-    multiplier = pd.Series(1.0, index=bars.index)
-    for record in adjustments.itertuples(index=False):
-        hit = bars["symbol"].eq(record.symbol) & (day < record.before)
-        multiplier[hit] *= float(record.factor)
-    for column in ADJUSTMENT_COLUMNS:
-        if column in bars:
-            bars[column] = pd.to_numeric(bars[column], errors="coerce") * multiplier
+    for symbol, before, factor in sorted(effective_adjustments(bars, adjustments), key=lambda e: e[1], reverse=True):
+        hit = bars["symbol"].eq(symbol) & (day < before)
+        for column in ADJUSTMENT_COLUMNS:
+            if column in bars:
+                bars.loc[hit, column] = pd.to_numeric(bars.loc[hit, column], errors="coerce") * factor
     return bars
 
 
@@ -112,8 +143,8 @@ def write_daily_bars(frame: pd.DataFrame, root: Path | None = None,
     if report is not None:
         merge_reports(report, checked)
     written = 0
-    for date, daily in cleaned.groupby("date", sort=True):
-        path = root / f"daily_bars_{date.isoformat()}.parquet"
+    for day, daily in cleaned.groupby("date", sort=True):
+        path = root / f"daily_bars_{day.isoformat()}.parquet"
         # Giữ lại các mã đã có nếu một số mã bị lỗi trong lần cập nhật này.
         previous = read_partition(path) if path.exists() else None
         if path.exists() and previous is None:

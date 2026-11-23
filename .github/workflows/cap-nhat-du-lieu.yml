@@ -42,24 +42,30 @@ jobs:
         with:
           fetch-depth: 30          # đủ lịch sử gần đây để biết dữ liệu hôm nay được commit lúc mấy giờ
 
-      # Lần chạy theo lịch: bỏ qua nếu dữ liệu hôm nay đã được chốt (commit từ 16:00 trở đi).
-      # Dữ liệu lấy lúc 15:15 chưa tính là chốt, nên mốc 16:37 sẽ tải lại một lần.
-      - name: Kiểm tra đã có dữ liệu hôm nay chưa
+      # Xác định PHIÊN cần có (không dùng ngày lịch): chạy trước 15:00 thì phiên cần có là ngày giao dịch liền trước
+      # (GitHub hay dời lịch sang 0h–5h sáng hôm sau), bỏ qua thứ Bảy/Chủ nhật. Lần chạy theo lịch được bỏ qua nếu
+      # kho đã có phiên đó và lần cập nhật gần nhất diễn ra từ 16:00 của phiên đó trở đi (số liệu đã chốt).
+      - name: Kiểm tra đã có dữ liệu phiên mới nhất chưa
         id: check
         run: |
-          TODAY=$(date +%F)
-          FILE="data/daily_bars_${TODAY}.parquet"
+          NOW=$(date +%H%M)
+          SESSION=$(date +%F)
+          if (( 10#$NOW < 1500 )); then SESSION=$(date -d "$SESSION -1 day" +%F); fi
+          while [ "$(date -d "$SESSION" +%u)" -ge 6 ]; do SESSION=$(date -d "$SESSION -1 day" +%F); done
+          echo "session=${SESSION}" >> "$GITHUB_OUTPUT"
+          FILE="data/daily_bars_${SESSION}.parquet"
           SKIP=false
           if [ "${{ github.event_name }}" = "schedule" ] && [ -e "$FILE" ]; then
-            # Giờ của lần cập nhật gần nhất (nhật ký job được commit mỗi lần chạy, kể cả khi số liệu không đổi)
-            LAST=$(git log -1 --format=%cd --date=format-local:%F/%H%M -- data/job_runs.csv)
-            AT=${LAST#*/}
-            if [ "${LAST%/*}" = "$TODAY" ] && [ "$AT" -ge 1600 ]; then
-              echo "Dữ liệu phiên ${TODAY} đã chốt lúc ${AT:0:2}:${AT:2:2} — bỏ qua lần chạy này."
+            # Thời điểm của lần cập nhật gần nhất (nhật ký job được commit mỗi lần chạy, kể cả khi số liệu không đổi)
+            LAST=$(git log -1 --format=%cd --date=format-local:'%F %H%M' -- data/job_runs.csv)
+            if [[ -n "$LAST" && ! "$LAST" < "${SESSION} 1600" ]]; then
+              echo "Phiên ${SESSION} đã có và đã chốt (cập nhật lúc ${LAST}) — bỏ qua lần chạy này."
               SKIP=true
             else
-              echo "Đã có dữ liệu sớm của phiên ${TODAY} (lúc ${AT:-?}) — tải lại để chốt số liệu cuối ngày."
+              echo "Phiên ${SESSION} mới có dữ liệu sớm (cập nhật lúc ${LAST:-?}) — tải lại để chốt số liệu."
             fi
+          else
+            echo "Chưa có dữ liệu phiên ${SESSION} — tải dữ liệu."
           fi
           echo "skip=${SKIP}" >> "$GITHUB_OUTPUT"
 
@@ -119,7 +125,9 @@ jobs:
           if git diff --cached --quiet; then
             echo "Không có dữ liệu mới (ngày nghỉ hoặc SSI chưa có phiên mới)."
           else
-            git commit -m "Dữ liệu SSI đến $(date +%d/%m/%Y)"
+            # Ghi đúng phiên mới nhất có trong kho (không phải ngày chạy workflow)
+            LATEST=$(ls data/daily_bars_*.parquet | sort | tail -1 | sed -E 's/.*daily_bars_([0-9-]+)\.parquet/\1/')
+            git commit -m "Dữ liệu SSI đến phiên $(date -d "$LATEST" +%d/%m/%Y)"
             git pull --rebase
             git push
           fi

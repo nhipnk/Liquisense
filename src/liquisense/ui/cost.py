@@ -59,12 +59,14 @@ def _round_lot(value: float) -> int:
 
 
 def quantity_input(symbol: str, adv: float) -> int | None:
-    """Ô nhập số + thanh kéo, đồng bộ hai chiều; tối thiểu 1 cổ (cho phép lô lẻ), ban đầu để trống."""
+    """Ô nhập số + thanh kéo, đồng bộ hai chiều; tối thiểu 1 cổ (cho phép lô lẻ).
+    Mặc định = 10% ADV (giữ nguyên số lẻ, không làm tròn lô) để mở trang là thấy ngay một kết quả có ý nghĩa."""
     max_slider = max(_round_lot(adv * 0.5), 10_000)
     num_key, slide_key = f"qty_num_{symbol}", f"qty_slide_{symbol}"
     if num_key not in st.session_state:
-        st.session_state[num_key] = None
-        st.session_state[slide_key] = 1
+        default = max(1, int(round(adv * 0.10))) if adv and adv > 0 else 10_000
+        st.session_state[num_key] = int(default)
+        st.session_state[slide_key] = int(min(default, max_slider))
 
     def from_number() -> None:
         value = st.session_state[num_key]

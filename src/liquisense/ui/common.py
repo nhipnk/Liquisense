@@ -192,6 +192,15 @@ def _cache_url() -> str:
     return url
 
 
+def running_on_cloud() -> bool:
+    """Đang chạy trên Streamlit Community Cloud (máy chủ dùng chung) hay trên máy cá nhân.
+
+    Streamlit Cloud clone repo vào /mount/src; ngoài ra có thể ép bằng biến LIQUISENSE_SHARED=1."""
+    if os.environ.get("LIQUISENSE_SHARED", "").strip() in {"1", "true", "yes"}:
+        return True
+    return Path("/mount/src").exists() or bool(_cache_url())
+
+
 @st.cache_resource(show_spinner=False, max_entries=4)
 def _prebuilt(signature: str) -> bool:
     url = _cache_url()
