@@ -87,7 +87,10 @@ def order_scenario(row: pd.Series, quantity: int, *, side: str = "Bán",
             "base_vnd": scen["Co so"]["total_pct"] * price * quantity,
             "price_risk": sigma * math.sqrt(sessions),  # 1 độ lệch chuẩn của giá trong thời gian chờ
         })
-    return Scenario(symbol=str(row.get("symbol", "")), quantity=int(quantity), side=side, price=price,
+    symbol = row.get("symbol", "")
+    if isinstance(symbol, pd.Series):          # nhãn "symbol" bị trùng trong row → lấy giá trị đầu
+        symbol = symbol.iloc[0] if len(symbol) else ""
+    return Scenario(symbol=str(symbol), quantity=int(quantity), side=side, price=price,
                     adv_volume=adv, spread=spread, volatility=sigma, plans=pd.DataFrame(plans))
 
 

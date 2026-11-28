@@ -518,7 +518,9 @@ def build_stock_report(row: pd.Series, metrics: pd.DataFrame, history: pd.DataFr
     # ---- 5. Tình huống thực tế
     block = [section("5", f"Tình huống: bán {_vn(ctx.scenario_qty)} cổ phiếu {symbol} mất bao lâu, tốn bao nhiêu")]
     try:
-        sc = order_scenario(pd.concat([row.drop(labels="symbol", errors="ignore"), pd.Series({"symbol": symbol})]), ctx.scenario_qty, side="Bán", fee=ctx.fee, tax=ctx.sell_tax)
+        scenario_row = row.copy()
+        scenario_row["symbol"] = symbol   # gán đè, không nối thêm (row có thể đã có khóa "symbol")
+        sc = order_scenario(scenario_row, ctx.scenario_qty, side="Bán", fee=ctx.fee, tax=ctx.sell_tax)
     except ValueError as exc:
         if row.get("status") == "Tran san lien tuc":
             block.append(Paragraph(

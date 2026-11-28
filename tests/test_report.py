@@ -40,3 +40,4 @@ def test_build_pdf_vietnamese():
     ctx = ReportContext("AAA", "cửa sổ 20 phiên đến 18/09/2026", date(2026, 6, 1), date(2026, 9, 18), date(2026, 9, 18))
     pdf = build_stock_report(metrics.iloc[0], metrics, history, "Vang", ctx)
     assert pdf.startswith(b"%PDF") and len(pdf) > 20_000
+
